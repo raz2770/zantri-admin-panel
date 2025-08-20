@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin collection - only admins can read their own data
+    match /admins/{adminId} {
+      allow read, write: if request.auth != null && request.auth.uid == adminId;
+      allow read: if request.auth != null && isAdmin(request.auth.uid);
+    }
+    
+    // Users collection - admins can read/write all user data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Clients collection - users can only access their own data, admins can access all
+    match /clients/{clientId} {
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Client data collection - users can only access their own data, admins can access all
+    match /clientData/{entryId} {
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Sheets collection - users can only access their own data, admins can access all
+    match /sheets/{sheetId} {
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Transactions collection - users can only access their own data, admins can access all
+    match /transactions/{transactionId} {
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin(uid) {
+      return exists(/databases/$(database)/documents/admins/$(uid));
+    }
+  }
+}
