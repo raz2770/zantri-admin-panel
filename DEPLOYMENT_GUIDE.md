@@ -22,7 +22,7 @@ git add .
 git commit -m "Initial commit: Zantri Admin Panel"
 
 # Add your GitHub repository as remote (replace with your actual repository URL)
-git remote add origin https://github.com/yourusername/zantri-admin-panel.git
+git remote add origin https://github.com/raz2770/zantri-admin-panel.git
 
 # Push to GitHub
 git push -u origin main
@@ -48,7 +48,7 @@ npm run deploy
 ### 4. Access Your Deployed Admin Panel
 
 Once deployed, your admin panel will be available at:
-- **GitHub Pages URL**: `https://yourusername.github.io/zantri-admin-panel/`
+- **GitHub Pages URL**: `https://raz2770.github.io/zantri-admin-panel/`
 - **Custom Domain** (if configured): `https://zantri-admin.daoodaba975.com`
 
 ### 5. Environment Configuration for Production
@@ -92,7 +92,7 @@ service cloud.firestore {
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select your project
 3. Go to Authentication → Settings → Authorized domains
-4. Add your GitHub Pages domain: `yourusername.github.io`
+4. Add your GitHub Pages domain: `raz2770.github.io`
 
 ## Troubleshooting
 
