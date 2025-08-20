@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/exlogrn/static/css/main.26063631.css",
+    "main.js": "/exlogrn/static/js/main.a7204c53.js",
+    "index.html": "/exlogrn/index.html",
+    "main.26063631.css.map": "/exlogrn/static/css/main.26063631.css.map",
+    "main.a7204c53.js.map": "/exlogrn/static/js/main.a7204c53.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.26063631.css",
+    "static/js/main.a7204c53.js"
+  ]
+}
