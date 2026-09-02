@@ -118,7 +118,7 @@ const Layout = ({ children, currentPage, onPageChange, admin, onLogout }) => {
               color="inherit"
             >
               <Avatar sx={{ width: 32, height: 32 }}>
-                {admin?.email?.charAt(0).toUpperCase()}
+                {(admin?.username || admin?.mobileNumber || 'A').charAt(0).toUpperCase()}
               </Avatar>
             </IconButton>
             <Menu

@@ -15,10 +15,12 @@ import {
   MenuItem
 } from '@mui/material';
 import { createAdmin } from '../services/authService';
+import { getApiBaseUrl } from '../services/apiClient';
 
 const Settings = () => {
   const [newAdmin, setNewAdmin] = useState({
-    email: '',
+    username: '',
+    mobileNumber: '',
     password: '',
     confirmPassword: '',
     role: 'admin'
@@ -32,8 +34,8 @@ const Settings = () => {
   };
 
   const handleCreateAdmin = async () => {
-    if (!newAdmin.email || !newAdmin.password) {
-      showAlert('Please fill in all fields', 'error');
+    if (!newAdmin.mobileNumber || !newAdmin.password) {
+      showAlert('Please fill in mobile number and password', 'error');
       return;
     }
 
@@ -49,14 +51,16 @@ const Settings = () => {
 
     setLoading(true);
     try {
-      const result = await createAdmin(newAdmin.email, newAdmin.password, {
+      const result = await createAdmin(newAdmin.mobileNumber, newAdmin.password, {
+        username: newAdmin.username || `admin_${newAdmin.mobileNumber}`,
         role: newAdmin.role
       });
 
       if (result.success) {
         showAlert('Admin account created successfully', 'success');
         setNewAdmin({
-          email: '',
+          username: '',
+          mobileNumber: '',
           password: '',
           confirmPassword: '',
           role: 'admin'
@@ -84,7 +88,6 @@ const Settings = () => {
       )}
 
       <Grid container spacing={3}>
-        {/* Admin Management */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -93,17 +96,25 @@ const Settings = () => {
             <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
               Create a new admin account to access the admin panel
             </Typography>
-            
+
             <TextField
               fullWidth
-              label="Email"
-              type="email"
-              value={newAdmin.email}
-              onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+              label="Username (optional)"
+              value={newAdmin.username}
+              onChange={(e) => setNewAdmin({ ...newAdmin, username: e.target.value })}
               sx={{ mb: 2 }}
               disabled={loading}
             />
-            
+
+            <TextField
+              fullWidth
+              label="Mobile Number"
+              value={newAdmin.mobileNumber}
+              onChange={(e) => setNewAdmin({ ...newAdmin, mobileNumber: e.target.value })}
+              sx={{ mb: 2 }}
+              disabled={loading}
+            />
+
             <TextField
               fullWidth
               label="Password"
@@ -113,7 +124,7 @@ const Settings = () => {
               sx={{ mb: 2 }}
               disabled={loading}
             />
-            
+
             <TextField
               fullWidth
               label="Confirm Password"
@@ -123,7 +134,7 @@ const Settings = () => {
               sx={{ mb: 2 }}
               disabled={loading}
             />
-            
+
             <FormControl fullWidth sx={{ mb: 3 }}>
               <InputLabel>Role</InputLabel>
               <Select
@@ -136,7 +147,7 @@ const Settings = () => {
                 <MenuItem value="super_admin">Super Admin</MenuItem>
               </Select>
             </FormControl>
-            
+
             <Button
               variant="contained"
               onClick={handleCreateAdmin}
@@ -148,13 +159,12 @@ const Settings = () => {
           </Paper>
         </Grid>
 
-        {/* System Information */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               System Information
             </Typography>
-            
+
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <Card variant="outlined">
@@ -168,20 +178,23 @@ const Settings = () => {
                   </CardContent>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="subtitle2" color="textSecondary">
-                      Database
+                      Backend API
                     </Typography>
                     <Typography variant="h6">
-                      Firebase Firestore
+                      Go REST API (MongoDB)
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      {getApiBaseUrl()}
                     </Typography>
                   </CardContent>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <Card variant="outlined">
                   <CardContent>
@@ -198,13 +211,12 @@ const Settings = () => {
           </Paper>
         </Grid>
 
-        {/* App Configuration */}
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               App Configuration
             </Typography>
-            
+
             <Grid container spacing={3}>
               <Grid item xs={12} md={4}>
                 <Typography variant="subtitle2" gutterBottom>
@@ -226,7 +238,7 @@ const Settings = () => {
                   • 12 Months: ₹1299
                 </Typography>
               </Grid>
-              
+
               <Grid item xs={12} md={4}>
                 <Typography variant="subtitle2" gutterBottom>
                   Device Limits
@@ -238,7 +250,7 @@ const Settings = () => {
                   • Device tracking: Enabled
                 </Typography>
               </Grid>
-              
+
               <Grid item xs={12} md={4}>
                 <Typography variant="subtitle2" gutterBottom>
                   Features
@@ -253,7 +265,7 @@ const Settings = () => {
                   • Analytics Dashboard
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  • Data Export
+                  • Transaction History
                 </Typography>
               </Grid>
             </Grid>

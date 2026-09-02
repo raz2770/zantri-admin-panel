@@ -1,30 +1,12 @@
-// Admin user service for managing users
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  deleteDoc, 
-  setDoc,
-  query,
-  orderBy,
-  serverTimestamp,
-  writeBatch
-} from 'firebase/firestore';
-import { 
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail
-} from 'firebase/auth';
-import { db, auth } from '../firebaseConfig';
+// Admin user service — Go backend REST API
+import api, { getErrorMessage } from './apiClient';
 
-// Subscription plan types
 export const PLAN_TYPES = {
   FREE_TRIAL: '0',
   ONE_MONTH: '1',
   THREE_MONTHS: '2',
   SIX_MONTHS: '3',
-  TWELVE_MONTHS: '4'
+  TWELVE_MONTHS: '4',
 };
 
 export const SUBSCRIPTION_STATUS = {
@@ -32,266 +14,138 @@ export const SUBSCRIPTION_STATUS = {
   EXPIRED: 'expired',
   CANCELLED: 'cancelled',
   PENDING: 'pending',
-  TRIAL: 'trial'
+  TRIAL: 'trial',
 };
 
-// Get all users
+const normalizeUser = (user) => {
+  if (!user) return null;
+  const id = user.id || user._id;
+  return {
+    ...user,
+    id,
+    createdAt: user.createdAt ? new Date(user.createdAt) : null,
+    lastLogin: user.lastLogin ? new Date(user.lastLogin) : null,
+    subscriptionExpiry: user.subscriptionExpiry ? new Date(user.subscriptionExpiry) : null,
+    subscriptionActivatedAt: user.subscriptionActivatedAt
+      ? new Date(user.subscriptionActivatedAt)
+      : null,
+  };
+};
+
 export const getAllUsers = async () => {
   try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    
-    const users = [];
-    snapshot.forEach((doc) => {
-      const userData = doc.data();
-      users.push({
-        id: doc.id,
-        ...userData,
-        createdAt: userData.createdAt?.toDate?.() || new Date(userData.createdAt),
-        lastLogin: userData.lastLogin?.toDate?.() || new Date(userData.lastLogin),
-        subscriptionExpiry: userData.subscriptionExpiry?.toDate?.() || userData.subscriptionExpiry,
-        subscriptionActivatedAt: userData.subscriptionActivatedAt?.toDate?.() || userData.subscriptionActivatedAt
-      });
-    });
-    
+    const { data } = await api.get('/admin/users');
+    const users = (data.users || []).map(normalizeUser);
     return { success: true, users };
   } catch (error) {
     console.error('Error fetching users:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error, 'Failed to fetch users') };
   }
 };
 
-// Get user by ID
 export const getUserById = async (userId) => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) {
+    const { data } = await api.get(`/admin/users/${encodeURIComponent(userId)}`);
+    if (!data.user) {
       return { success: false, error: 'User not found' };
     }
-    
-    const userData = userDoc.data();
-    return {
-      success: true,
-      user: {
-        id: userDoc.id,
-        ...userData,
-        createdAt: userData.createdAt?.toDate?.() || new Date(userData.createdAt),
-        lastLogin: userData.lastLogin?.toDate?.() || new Date(userData.lastLogin),
-        subscriptionExpiry: userData.subscriptionExpiry?.toDate?.() || userData.subscriptionExpiry,
-        subscriptionActivatedAt: userData.subscriptionActivatedAt?.toDate?.() || userData.subscriptionActivatedAt
-      }
-    };
+    return { success: true, user: normalizeUser(data.user) };
   } catch (error) {
     console.error('Error fetching user:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error, 'Failed to fetch user') };
   }
 };
 
-// Create new user
 export const createUser = async (userData) => {
   try {
     const { username, mobileNumber, password, hasSubscription = false } = userData;
-    
-    // Create email from mobile number
-    const email = `${mobileNumber}@zantri.com`;
-    
-    // Create user in Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const firebaseUser = userCredential.user;
-    
-    // Create user document in Firestore
-    const newUserData = {
-      uid: firebaseUser.uid,
-      username: username,
-      mobileNumber: mobileNumber,
-      email: email,
-      hasSubscription: hasSubscription,
-      subscriptionExpiry: null,
-      subscriptionPlan: null,
-      subscriptionStatus: null,
-      devices: [],
-      maxDevices: 2,
-      freeTrialUsed: false,
-      createdAt: serverTimestamp(),
-      lastLogin: serverTimestamp(),
-      createdBy: 'admin', // Mark as admin created
-      updatedAt: serverTimestamp()
-    };
-    
-    await setDoc(doc(db, 'users', firebaseUser.uid), newUserData);
-    
-    return { 
-      success: true, 
-      message: 'User created successfully',
-      userId: firebaseUser.uid
+    const { data } = await api.post('/admin/users', {
+      username,
+      mobileNumber,
+      password,
+      hasSubscription,
+    });
+    return {
+      success: true,
+      message: data.message || 'User created successfully',
+      userId: data.user?.id,
     };
   } catch (error) {
     console.error('Error creating user:', error);
-    let errorMessage = 'Failed to create user';
-    
-    if (error.code === 'auth/email-already-in-use') {
-      errorMessage = 'Mobile number already registered';
-    } else if (error.code === 'auth/weak-password') {
-      errorMessage = 'Password is too weak. Please use at least 6 characters';
-    }
-    
-    return { success: false, error: errorMessage };
+    return { success: false, error: getErrorMessage(error, 'Failed to create user') };
   }
 };
 
-// Update user
 export const updateUser = async (userId, updates) => {
   try {
-    const userRef = doc(db, 'users', userId);
-    const updateData = {
-      ...updates,
-      updatedAt: serverTimestamp()
-    };
-    
-    await updateDoc(userRef, updateData);
-    
+    await api.patch(`/admin/users/${encodeURIComponent(userId)}`, updates);
     return { success: true, message: 'User updated successfully' };
   } catch (error) {
     console.error('Error updating user:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error, 'Failed to update user') };
   }
 };
 
-// Delete user
 export const deleteUserAccount = async (userId) => {
   try {
-    // Delete user document from Firestore
-    await deleteDoc(doc(db, 'users', userId));
-    
-    // Note: To delete from Firebase Auth, you need admin SDK
-    // For now, we'll just delete from Firestore
-    
+    await api.delete(`/admin/users/${encodeURIComponent(userId)}`);
     return { success: true, message: 'User deleted successfully' };
   } catch (error) {
     console.error('Error deleting user:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error, 'Failed to delete user') };
   }
 };
 
-// Update user subscription
 export const updateUserSubscription = async (userId, subscriptionData) => {
   try {
-    const { planId, expiryDate, transactionId, paymentMethod, activateNow = false } = subscriptionData;
-    
-    const updateData = {
-      hasSubscription: activateNow,
-      subscriptionPlan: planId,
-      subscriptionStatus: activateNow ? 
-        (planId === PLAN_TYPES.FREE_TRIAL ? SUBSCRIPTION_STATUS.TRIAL : SUBSCRIPTION_STATUS.ACTIVE) :
-        SUBSCRIPTION_STATUS.PENDING,
-      updatedAt: serverTimestamp()
-    };
-    
-    if (expiryDate) {
-      updateData.subscriptionExpiry = new Date(expiryDate);
-    }
-    
-    if (activateNow) {
-      updateData.subscriptionActivatedAt = serverTimestamp();
-    }
-    
-    if (transactionId) {
-      updateData.paymentTransactionId = transactionId;
-      updateData.paymentMethod = paymentMethod || 'ADMIN_ASSIGNED';
-      updateData.paymentDate = serverTimestamp();
-    }
-    
-    if (planId === PLAN_TYPES.FREE_TRIAL) {
-      updateData.freeTrialUsed = true;
-    }
-    
-    await updateDoc(doc(db, 'users', userId), updateData);
-    
+    await api.patch(`/admin/users/${encodeURIComponent(userId)}/subscription`, subscriptionData);
     return { success: true, message: 'Subscription updated successfully' };
   } catch (error) {
     console.error('Error updating subscription:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error, 'Failed to update subscription') };
   }
 };
 
-// Reset user password
-export const resetUserPassword = async (email) => {
+export const resetUserPassword = async (userId, password) => {
   try {
-    await sendPasswordResetEmail(auth, email);
-    return { success: true, message: 'Password reset email sent' };
+    await api.patch(`/admin/users/${encodeURIComponent(userId)}/password`, { password });
+    return { success: true, message: 'Password updated successfully' };
   } catch (error) {
-    console.error('Error sending password reset:', error);
-    return { success: false, error: error.message };
+    console.error('Error resetting password:', error);
+    return { success: false, error: getErrorMessage(error, 'Failed to reset password') };
   }
 };
 
-// Get user statistics
 export const getUserStats = async () => {
   try {
-    const usersRef = collection(db, 'users');
-    const allUsersSnapshot = await getDocs(usersRef);
-    
-    let totalUsers = 0;
-    let activeSubscriptions = 0;
-    let trialUsers = 0;
-    let expiredUsers = 0;
-    
-    const now = new Date();
-    
-    allUsersSnapshot.forEach((doc) => {
-      const userData = doc.data();
-      totalUsers++;
-      
-      if (userData.hasSubscription) {
-        const expiryDate = userData.subscriptionExpiry?.toDate?.() || new Date(userData.subscriptionExpiry);
-        if (expiryDate > now) {
-          if (userData.subscriptionPlan === PLAN_TYPES.FREE_TRIAL) {
-            trialUsers++;
-          } else {
-            activeSubscriptions++;
-          }
-        } else {
-          expiredUsers++;
-        }
-      }
-    });
-    
-    return {
-      success: true,
-      stats: {
-        totalUsers,
-        activeSubscriptions,
-        trialUsers,
-        expiredUsers,
-        freeUsers: totalUsers - activeSubscriptions - trialUsers - expiredUsers
-      }
-    };
+    const { data } = await api.get('/admin/stats');
+    return { success: true, stats: data.stats };
   } catch (error) {
     console.error('Error fetching user stats:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error, 'Failed to fetch stats') };
   }
 };
 
-// Bulk operations
 export const bulkUpdateUsers = async (userIds, updates) => {
   try {
-    const batch = writeBatch(db);
-    
-    userIds.forEach((userId) => {
-      const userRef = doc(db, 'users', userId);
-      batch.update(userRef, {
-        ...updates,
-        updatedAt: serverTimestamp()
-      });
-    });
-    
-    await batch.commit();
-    
-    return { success: true, message: `${userIds.length} users updated successfully` };
+    const { data } = await api.post('/admin/users/bulk', { userIds, updates });
+    return {
+      success: true,
+      message: data.message || `${userIds.length} users updated successfully`,
+    };
   } catch (error) {
     console.error('Error bulk updating users:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error, 'Failed to bulk update users') };
+  }
+};
+
+export const getAllTransactions = async () => {
+  try {
+    const { data } = await api.get('/admin/transactions');
+    return { success: true, transactions: data.transactions || [] };
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    return { success: false, error: getErrorMessage(error, 'Failed to fetch transactions') };
   }
 };
 
@@ -305,8 +159,9 @@ const userService = {
   resetUserPassword,
   getUserStats,
   bulkUpdateUsers,
+  getAllTransactions,
   PLAN_TYPES,
-  SUBSCRIPTION_STATUS
+  SUBSCRIPTION_STATUS,
 };
 
 export default userService;

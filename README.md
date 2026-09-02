@@ -1,223 +1,140 @@
 # Zantri Admin Panel
 
-A React.js web admin panel for managing users, subscriptions, and analytics for the Zantri mobile application.
+A React.js web admin panel for managing users, subscriptions, and analytics for the Zantri mobile application. It connects to the **Go backend** (`jantri-backend-go`) via JWT-authenticated REST APIs.
 
 ## Features
 
 - **User Management**: Create, view, edit, and delete users
 - **Subscription Management**: Manage user subscriptions, assign plans, set expiry dates
 - **Analytics Dashboard**: View user growth, subscription distribution, and revenue analytics
-- **Admin Authentication**: Secure login system for admin access
+- **Admin Authentication**: JWT login via Go backend with admin role checks
 - **Responsive Design**: Works on desktop and mobile devices
 
 ## Technology Stack
 
 - React.js 18
 - Material-UI (MUI) for UI components
-- Firebase (Auth & Firestore) for backend
+- Go REST API + MongoDB (via `jantri-backend-go`)
+- Axios for HTTP with JWT refresh
 - Recharts for analytics visualization
-- React Router for navigation
 
-## Setup Instructions
-
-### Prerequisites
+## Prerequisites
 
 - Node.js (v14 or higher)
-- npm or yarn
-- Firebase project (same as mobile app)
+- Running Go backend at `jantri-backend-go` (default `http://localhost:8080`)
+- MongoDB (via Docker Compose or local instance)
 
-### Installation
+## Setup
 
-1. Navigate to the admin panel directory:
-   ```bash
-   cd admin-panel
-   ```
+### 1. Start the Go backend
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+```bash
+cd jantri-backend-go
+cp .env.example .env
+# Set ADMIN_SECRET and optionally ADMIN_MOBILES
+docker compose up -d   # or: go run ./cmd/server
+```
 
-3. Update Firebase configuration:
-   - The `src/firebaseConfig.js` file is already configured to use the same Firebase project as your mobile app
-   - No additional configuration needed if using the same project
+### 2. Bootstrap the first admin
 
-4. Create an admin account:
-   - Start the application: `npm start`
-   - Go to Settings page after logging in with any temporary credentials
-   - Use the "Create New Admin" feature to create your first admin account
-   - Or manually add an admin document to Firestore:
-     ```javascript
-     // Add to 'admins' collection in Firestore
-     {
-       email: "your-admin-email@example.com",
-       role: "admin",
-       permissions: ["users", "subscriptions", "analytics"],
-       createdAt: new Date()
-     }
-     ```
+```bash
+cd admin-panel
+npm install
+npm run create-admin
+```
 
-### Running the Application
+This calls `POST /admin/bootstrap` with your `ADMIN_SECRET`. Alternatively, add a mobile number to `ADMIN_MOBILES` in the Go backend `.env` and use an existing user's credentials.
 
-1. Start the development server:
-   ```bash
-   npm start
-   ```
+### 3. Configure the admin panel
 
-2. Open [http://localhost:3000](http://localhost:3000) in your browser
+```bash
+cp .env.example .env
+# REACT_APP_API_BASE_URL=http://localhost:8080
+```
 
-3. Login with your admin credentials
+### 4. Run the admin panel
 
-## Admin Panel Features
+```bash
+npm start
+```
 
-### Dashboard
-- Overview of total users, active subscriptions, trial users
-- Recent users table
-- Key metrics at a glance
+Open [http://localhost:3000](http://localhost:3000) and sign in with your **admin mobile number** and password.
 
-### Users Management
-- View all users in a data grid
-- Create new users manually
-- Edit user information
-- Manage user subscriptions
-- Delete users
-- Filter and search functionality
-- Bulk operations support
+## Admin Panel Pages
 
-### Subscription Management
-- View all user subscriptions
-- Subscription status tracking
-- Revenue analytics
-- Expiry date management
-- Plan assignment without payment processing
-- Filter by plan type and status
-
-### Analytics
-- User growth charts
-- Subscription distribution pie chart
-- Revenue by plan analysis
-- Key performance metrics
-- Customizable time ranges
-
-### Settings
-- Create new admin accounts
-- System information
-- App configuration overview
-
-## User Management Features
-
-### Creating Users
-- Username and mobile number required
-- Password assignment
-- Automatic email generation (mobile@zantri.com format)
-- Subscription status toggle
-
-### Subscription Assignment
-- Assign any plan to users
-- Set custom expiry dates
-- Mark as paid without payment processing
-- Transaction ID tracking
-- Multiple payment method options
-
-### User Actions
-- View user details
-- Edit user information
-- Reset passwords (via Firebase)
-- Manage device limits
-- Subscription history
-
-## Security Features
-
-- Admin-only access with Firebase Authentication
-- Role-based permissions
-- Secure API calls to Firebase
-- Input validation and sanitization
-
-## Firebase Collections Used
-
-### Users Collection (`users`)
-- User profile data
-- Subscription information
-- Device tracking
-- Payment history
-
-### Admins Collection (`admins`)
-- Admin credentials
-- Role and permissions
-- Access control
+| Page | Description |
+|------|-------------|
+| Dashboard | User counts, subscription stats, recent users |
+| Users | CRUD, search/filter, subscription assignment |
+| Subscriptions | Active/trial/expired subscriptions, revenue estimates |
+| Analytics | Growth charts, plan distribution, revenue by plan |
+| Settings | Create additional admin accounts |
 
 ## Environment Variables
 
-No additional environment variables needed - the app uses the same Firebase configuration as your mobile application.
+### Admin panel (`.env`)
 
-## Deployment
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REACT_APP_API_BASE_URL` | Go backend URL | `http://localhost:8080` |
 
-### Build for Production
+### Go backend (required for admin access)
+
+| Variable | Description |
+|----------|-------------|
+| `ADMIN_MOBILES` | Comma-separated mobile numbers always treated as admin |
+| `ADMIN_SECRET` | Secret for one-time `POST /admin/bootstrap` |
+| `JWT_SECRET` | Must match between backend restarts |
+
+## API Endpoints Used
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/admin/auth/login` | Admin login |
+| POST | `/admin/bootstrap` | First admin setup (requires `ADMIN_SECRET`) |
+| GET | `/admin/me` | Current admin profile |
+| GET | `/admin/stats` | Dashboard statistics |
+| GET | `/admin/users` | List all users |
+| POST | `/admin/users` | Create user |
+| PATCH | `/admin/users/:id` | Update user |
+| DELETE | `/admin/users/:id` | Delete user |
+| PATCH | `/admin/users/:id/subscription` | Manage subscription |
+| PATCH | `/admin/users/:id/password` | Reset password |
+| POST | `/admin/admins` | Create/promote admin |
+| GET | `/admin/transactions` | List payment transactions |
+
+All `/admin/*` routes (except login and bootstrap) require a valid JWT and admin privileges.
+
+## Security
+
+- Admin access is granted when a user has `isAdmin: true` in MongoDB **or** their mobile is listed in `ADMIN_MOBILES`
+- Admin routes are protected by JWT auth + admin middleware on the Go backend
+- Tokens are stored in `localStorage` and refreshed automatically on 401
+
+## Build & Deploy
+
 ```bash
 npm run build
 ```
 
-### Deploy Options
-1. **Firebase Hosting**: Use `firebase deploy` after building
-2. **Netlify**: Connect your GitHub repo for automatic deployments
-3. **Vercel**: Simple deployment with GitHub integration
-4. **Traditional Web Hosting**: Upload the `build` folder contents
+Set `REACT_APP_API_BASE_URL` to your production Go API URL before building.
 
-## API Integration
-
-The admin panel directly integrates with your existing Firebase Firestore database. No additional backend APIs required.
-
-### Supported Operations
-- Read all users
-- Create new users
-- Update user data
-- Delete users
-- Manage subscriptions
-- View analytics data
+Deploy the `build/` folder to any static host (Netlify, Vercel, GitHub Pages, etc.).
 
 ## Troubleshooting
 
-### Common Issues
+**403 Admin privileges required**
+- Ensure the user has `isAdmin: true` or their mobile is in `ADMIN_MOBILES`
+- Use `npm run create-admin` to bootstrap the first admin
 
-1. **Firebase Permission Denied**
-   - Ensure your Firebase Security Rules allow admin access
-   - Check that the admin user exists in the `admins` collection
+**Network / CORS errors**
+- Confirm Go backend is running and reachable at `REACT_APP_API_BASE_URL`
+- Backend allows all origins in dev (`cors.Options{AllowedOrigins: ["*"]}`)
 
-2. **Users Not Loading**
-   - Verify Firebase configuration
-   - Check browser console for errors
-   - Ensure Firestore rules allow read access
-
-3. **Authentication Issues**
-   - Create admin account in Firestore manually
-   - Check Firebase Auth configuration
-   - Verify admin credentials
-
-### Firebase Security Rules
-
-Ensure your Firestore security rules allow admin access:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Admin access
-    match /admins/{adminId} {
-      allow read, write: if request.auth != null && request.auth.uid == adminId;
-    }
-    
-    // Users collection - admin can read/write all
-    match /users/{userId} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
-
-## Support
-
-For issues or questions, please refer to the main project documentation or contact the development team.
+**Users not loading**
+- Check browser console and Go backend logs
+- Verify JWT token is present in localStorage (`zantri_admin_access_token`)
 
 ## License
 
-This admin panel is part of the Zantri project and follows the same licensing terms.
+Part of the Zantri project.

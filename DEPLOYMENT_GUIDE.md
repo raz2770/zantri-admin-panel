@@ -1,147 +1,59 @@
 # Zantri Admin Panel Deployment Guide
 
-## GitHub Pages Deployment Steps
+The admin panel is a React SPA that talks to the **Go backend** (`jantri-backend-go`) via JWT — no Firebase.
 
-Follow these steps to deploy your Zantri Admin Panel to GitHub Pages:
+## Prerequisites
 
-### 1. Push to GitHub Repository
+1. Go API deployed (e.g. Render) with admin env vars:
+   - `JWT_SECRET`, `MONGODB_URI`
+   - `ADMIN_MOBILES` and/or `ADMIN_SECRET` for bootstrap
+2. First admin created via `npm run create-admin` or `POST /admin/bootstrap`
 
-First, initialize Git and push your code to GitHub:
+## Build
+
+Set the API URL at **build time**:
 
 ```bash
-# Navigate to your admin panel directory
-cd "c:\Users\user\Downloads\zantri\admin-panel"
-
-# Initialize git repository
-git init
-
-# Add all files
-git add .
-
-# Commit the files
-git commit -m "Initial commit: Zantri Admin Panel"
-
-# Add your GitHub repository as remote (replace with your actual repository URL)
-git remote add origin https://github.com/raz2770/zantri-admin-panel.git
-
-# Push to GitHub
-git push -u origin main
+cd admin-panel
+cp .env.example .env
+# REACT_APP_API_BASE_URL=https://your-api.onrender.com
+npm install
+npm run build
 ```
 
-### 2. Configure GitHub Repository Settings
-
-1. Go to your GitHub repository
-2. Click on "Settings" tab
-3. Scroll down to "Pages" section in the left sidebar
-4. Under "Source", select "GitHub Actions"
-5. The GitHub Actions workflow will automatically deploy your app
-
-### 3. Deploy Using npm Script
-
-Alternatively, you can deploy directly using the npm script:
+## GitHub Pages
 
 ```bash
-# Build and deploy to GitHub Pages
 npm run deploy
 ```
 
-### 4. Access Your Deployed Admin Panel
+Live URL (if configured): `https://raz2770.github.io/zantri-admin-panel/`
 
-Once deployed, your admin panel will be available at:
-- **GitHub Pages URL**: `https://raz2770.github.io/zantri-admin-panel/`
-- **Custom Domain** (if configured): `https://zantri-admin.daoodaba975.com`
+Ensure `homepage` in `package.json` matches your Pages path.
 
-### 5. Environment Configuration for Production
+## Render Static Site (alternative)
 
-Make sure your Firebase configuration works in production:
+| Setting | Value |
+|---------|-------|
+| Root Directory | `admin-panel` |
+| Build Command | `npm install && npm run build` |
+| Publish Directory | `build` |
+| Env | `REACT_APP_API_BASE_URL=https://your-api.onrender.com` |
 
-1. **Firebase Security Rules**: Update your Firestore rules to allow admin operations
-2. **Domain Authorization**: Add your GitHub Pages domain to Firebase console
-3. **Environment Variables**: Ensure all Firebase config values are correct
+## Login
 
-### 6. Admin Account Access
-
-Use the admin account you created earlier:
-- **Email**: admin@gmail.com
-- **Password**: (the password you set during creation)
-
-## Firebase Configuration for Production
-
-### Update Firestore Security Rules
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Allow admin users to read/write all documents
-    match /{document=**} {
-      allow read, write: if request.auth != null && 
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-    
-    // Allow admins collection to be readable by authenticated users
-    match /admins/{adminId} {
-      allow read: if request.auth != null && request.auth.uid == adminId;
-    }
-  }
-}
-```
-
-### Add Domain to Firebase Console
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select your project
-3. Go to Authentication → Settings → Authorized domains
-4. Add your GitHub Pages domain: `raz2770.github.io`
+Use **mobile number + password** for an admin account (not email).
 
 ## Troubleshooting
 
-### Common Issues:
+| Issue | Fix |
+|-------|-----|
+| API network errors | Check `REACT_APP_API_BASE_URL` was set when building |
+| 401 on login | User must have `isAdmin` or mobile in `ADMIN_MOBILES` |
+| CORS errors | Go backend allows `*` origins by default |
 
-1. **404 Error on Refresh**: 
-   - GitHub Pages doesn't support client-side routing by default
-   - The app will work correctly when navigating from the homepage
+## Security
 
-2. **Firebase Connection Issues**:
-   - Verify your Firebase config in `src/config/firebaseConfig.js`
-   - Check that your domain is authorized in Firebase console
-
-3. **Build Errors**:
-   - Run `npm run build` locally to test
-   - Check the GitHub Actions logs for specific error messages
-
-### Build and Test Locally
-
-Before deploying, test your build locally:
-
-```bash
-# Build the project
-npm run build
-
-# Serve the build locally (install serve if needed)
-npx serve -s build -l 3000
-```
-
-## Custom Domain Setup (Optional)
-
-If you want to use a custom domain like `zantri-admin.daoodaba975.com`:
-
-1. Configure your DNS to point to GitHub Pages
-2. The `CNAME` file is already created in `public/CNAME`
-3. Update the `homepage` field in `package.json` with your custom domain
-
-## Security Considerations
-
-1. **Firebase Security Rules**: Ensure only authorized admins can access data
-2. **Environment Variables**: Never commit sensitive Firebase config to public repos
-3. **Admin Account Security**: Use strong passwords and consider 2FA
-4. **HTTPS**: GitHub Pages provides HTTPS by default
-
-## Continuous Deployment
-
-The GitHub Actions workflow (`deploy.yml`) will automatically:
-- Build your React app
-- Deploy to GitHub Pages
-- Run on every push to the main branch
-
-Your admin panel is now ready for production use! 🚀
+- Never commit `.env` with secrets
+- Use HTTPS in production
+- Rotate `JWT_SECRET` and admin passwords regularly

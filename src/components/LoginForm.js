@@ -15,7 +15,7 @@ import { loginAdmin } from '../services/authService';
 
 const LoginForm = ({ onLogin }) => {
   const [formData, setFormData] = useState({
-    email: '',
+    mobileNumber: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
@@ -31,8 +31,8 @@ const LoginForm = ({ onLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.email || !formData.password) {
+
+    if (!formData.mobileNumber || !formData.password) {
       setError('Please fill in all fields');
       return;
     }
@@ -41,14 +41,14 @@ const LoginForm = ({ onLogin }) => {
     setError('');
 
     try {
-      const result = await loginAdmin(formData.email, formData.password);
-      
+      const result = await loginAdmin(formData.mobileNumber, formData.password);
+
       if (result.success) {
         onLogin(result.admin);
       } else {
         setError(result.error);
       }
-    } catch (error) {
+    } catch (err) {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -79,21 +79,21 @@ const LoginForm = ({ onLogin }) => {
                 {error}
               </Alert>
             )}
-            
+
             <TextField
               margin="normal"
               required
               fullWidth
-              id="email"
-              label="Admin Email"
-              name="email"
-              autoComplete="email"
+              id="mobileNumber"
+              label="Admin Mobile Number"
+              name="mobileNumber"
+              autoComplete="tel"
               autoFocus
-              value={formData.email}
+              value={formData.mobileNumber}
               onChange={handleChange}
               disabled={loading}
             />
-            
+
             <TextField
               margin="normal"
               required
@@ -107,7 +107,7 @@ const LoginForm = ({ onLogin }) => {
               onChange={handleChange}
               disabled={loading}
             />
-            
+
             <Button
               type="submit"
               fullWidth
